@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -14,17 +16,17 @@ public class PersonalManagement {
 
     public void printMainMenu() {
         System.out.println("+--------------------------------------------------+");
-        System.out.println("|                                                  |");
+        System.out.printf("| %-49s|%n", "");
         System.out.println("|              PERSONALVERWALTUNG                  |");
-        System.out.println("|                                                  |");
-        System.out.println("| 1. Neue Person hinzufügen                        |");
-        System.out.println("| 2. Person bearbeiten                             |");
-        System.out.println("| 3. Person löschen                                |");
-        System.out.println("| 4. Person suchen                                 |");
-        System.out.println("| 5. Liste aller Personen anzeigen                 |");
-        System.out.println("| 6. Analysefunktionen                             |");
-        System.out.println("| 7. beenden                                       |");
-        System.out.println("|                                                  |");
+        System.out.printf("| %-49s|%n", "");
+        System.out.printf("| %-49s|%n", "1. Neue Person hinzufügen");
+        System.out.printf("| %-49s|%n", "2. Person bearbeiten ");
+        System.out.printf("| %-49s|%n", "3. Person löschen");
+        System.out.printf("| %-49s|%n", "4. Person suchen");
+        System.out.printf("| %-49s|%n", "5. Liste aller Personen anzeigen  ");
+        System.out.printf("| %-49s|%n", "6. Analysefunktionen");
+        System.out.printf("| %-49s|%n", "7. beenden");
+        System.out.printf("| %-49s|%n", "");
         System.out.println("+--------------------------------------------------+");
     }
 
@@ -50,7 +52,7 @@ public class PersonalManagement {
         Job job = person.job();
         return splitSymbol + person.firstName() +
                 splitSymbol + person.lastName() +
-                splitSymbol + person.birthday() +
+                splitSymbol + new SimpleDateFormat("yyyy.MM.dd").format(person.birthday()) +
                 splitSymbol + person.gender() +
                 splitSymbol + address.street() +
                 splitSymbol + address.houseNumber() +
@@ -88,14 +90,15 @@ public class PersonalManagement {
         return true;
     }
 
-    public Person searchPersonWithAttribut(String searchingAttribut) {
+    public List<Person> searchPersonWithAttribut(String searchingAttribut) {
         List<Person> persons = getPersonsFromFile();
+        List<Person> personsWithAttribut = new ArrayList<>();
         for (Person person : persons) {
-            if (serialize(person).contains(searchingAttribut)) {
-                return person;
+            if (serialize(person).toUpperCase().contains(searchingAttribut.toUpperCase())) {
+                personsWithAttribut.add(person);
             }
         }
-        return null;
+        return personsWithAttribut;
     }
 
     public void printPersonsToFile(List<Person> persons) {
@@ -116,6 +119,7 @@ public class PersonalManagement {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
         List<Person> persons = new ArrayList<>();
         if (!serializedPersons.isEmpty()) {
             for (String serializedPerson : serializedPersons) {
@@ -128,6 +132,11 @@ public class PersonalManagement {
         return persons;
     }
 
+    @SuppressWarnings("all")
+    public Date StringToDate(String date) {
+        String[] birthdaySplitted = date.split("\\.");
+        return new Date(Integer.parseInt(birthdaySplitted[0]) - 1900, Integer.parseInt(birthdaySplitted[1]) - 1, Integer.parseInt(birthdaySplitted[2]));
+    }
 
     public Person deserialize(String line) {
         String[] splitted = line.split(splitSymbol);
@@ -135,7 +144,7 @@ public class PersonalManagement {
             return new Person(Integer.parseInt(splitted[0]),
                     splitted[1],
                     splitted[2],
-                    splitted[3],
+                    StringToDate(splitted[3]),
                     splitted[4],
                     new Address(splitted[5],
                             Integer.parseInt(splitted[6]),

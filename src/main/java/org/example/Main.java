@@ -1,7 +1,8 @@
 package org.example;
 
-import java.util.List;
-import java.util.Scanner;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -17,6 +18,7 @@ public class Main {
             } catch (Exception e) {
                 System.out.println("'" + userInputString + "' steht nicht zur Auswahl!");
             }
+            List<Person> persons = personalManagement.getPersonsFromFile();
             switch (userInput) {
                 case 1:
                     Person personFromTerminal = readPersonFromTerminal();
@@ -26,7 +28,6 @@ public class Main {
                     }
                     break;
                 case 2:
-                    List<Person> persons = personalManagement.getPersonsFromFile();
                     int personId = selectPerson(persons);
                     if (personId != -1) {
                         printPersonAttributes(persons.get(personId - 1));
@@ -37,12 +38,12 @@ public class Main {
                         if (personalManagement.editPerson(personId, selectedAttribute, newEntry)) {
                             System.out.println("Person aktualisiert.");
                         } else {
-                            System.out.println("Person nicht gefunden.");
+                            System.out.println("Person wurde nicht gefunden.");
                         }
                     }
                     break;
                 case 3:
-                    personId = selectPerson(personalManagement.getPersonsFromFile());
+                    personId = selectPerson(persons);
                     if (personId != -1) {
                         if (personalManagement.deletePerson(personId)) {
                             System.out.println("Person wurde gelöscht");
@@ -54,18 +55,18 @@ public class Main {
                 case 4:
                     System.out.print("Geben sie das gesuchte Attribut ein: >");
                     String searchingAttribut = scanner.next();
-                    Person personWithAttribut = personalManagement.searchPersonWithAttribut(searchingAttribut);
-                    if(personWithAttribut != null){
-                        System.out.println("Person mit Attribut '" + searchingAttribut + "' wurde gefunden:");
-                        System.out.println(personWithAttribut);
-                    } else {
-                        System.out.println("Person mit Attribut '" + searchingAttribut + "' wurde nicht gefunden:");
-                    }
+                    List<Person> personsWithAttribut = personalManagement.searchPersonWithAttribut(searchingAttribut);
+                    System.out.println("--------------------Diese Personen haben das Attribut '" + searchingAttribut + "'---------------------");
+                    printPersons(personsWithAttribut);
                     break;
                 case 5:
+                    System.out.println("\n --------------------Personen---------------------");
                     printPersons(personalManagement.getPersonsFromFile());
                     break;
                 case 6:
+                    analyseGenders(new ArrayList<>(findGenderAmount(persons).entrySet()));
+                    analyseAvarageAge(persons);
+                    analyseSalarys(persons);
                     break;
                 case 7:
                     System.out.println("Das Programm wird beendet.");
@@ -74,12 +75,57 @@ public class Main {
         }
     }
 
+    private static void analyseSalarys(List<Person> persons) {
+        persons = persons.stream().sorted(Comparator.comparingDouble(p -> p.job().salary())).toList();
+        try {
+            System.out.println("Höchstes Gehalt: " + persons.get(persons.size() - 1).job().salary() + "€");
+            System.out.println("Niedrigstes Gehalt: " + persons.get(0).job().salary() + "€");
+            double avarageSalary = persons.stream().map(m -> m.job().salary()).reduce(0d, Double::sum)
+                    / persons.size();
+            System.out.println("Durchschnittliches Gehalt: " + avarageSalary);
+        } catch (Exception e) {
+            System.out.println("Keine Person im System");
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static double BirthdateToAge(Date birthday) {
+        return new Date().getYear() - birthday.getYear();
+    }
+
+    private static void analyseAvarageAge(List<Person> persons) {
+        double avarageAge = persons.stream()
+                .map(m -> BirthdateToAge(m.birthday()))
+                .reduce(0d, Double::sum) / persons.size();
+        System.out.println("\nDurchschnittsalter: " + avarageAge + " Jahre \n");
+    }
+
+    private static void analyseGenders(List<Map.Entry<String, Integer>> entries) {
+        entries = entries.stream().sorted(Comparator.comparingInt(Map.Entry::getValue)).toList();
+        System.out.printf("| %-10s | %-6s | %-6s |%n", "Geschlecht", "Anzahl", "%");
+        System.out.println("+------------+--------+--------+");
+        double start = entries.stream().map(Map.Entry::getValue).reduce(0, Integer::sum);
+        NumberFormat nf = NumberFormat.getInstance();
+        nf.setMaximumFractionDigits(2);
+        for (Map.Entry<String, Integer> entry : entries) {
+            System.out.printf("| %-10s | %-6s | %-6s |%n", entry.getKey(), entry.getValue(), nf.format((entry.getValue() / start) * 100) + "%");
+        }
+    }
+
+    private static Map<String, Integer> findGenderAmount(List<Person> persons) {
+        Map<String, Integer> genders = new HashMap<>();
+        for (Person person : persons) {
+            genders.put(person.gender().toLowerCase(), genders.getOrDefault(person.gender().toLowerCase(), 0) + 1);
+        }
+        return genders;
+    }
+
     private static void printPersonAttributes(Person person) {
         Address address = person.address();
         Job job = person.job();
         System.out.println("1 -> " + person.firstName());
         System.out.println("2 -> " + person.lastName());
-        System.out.println("3 -> " + person.birthday());
+        System.out.println("3 -> " + new SimpleDateFormat("yyyy.MM.dd").format(person.birthday()));
         System.out.println("4 -> " + person.gender());
         System.out.println("5 -> " + address.street());
         System.out.println("6 -> " + address.houseNumber());
@@ -108,7 +154,8 @@ public class Main {
     }
 
     private static void printPersons(List<Person> persons) {
-        System.out.println("\n --------------------Personen---------------------");
+        System.out.printf("| %-3s | %-10s | %-15s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s | %-10s | %-15s | %-20s | %-15s | %-15s | %-6s | %-5s | %-5s | %-20s |%n", "ID", "Vorname", "Nachname", "Geburtstag", "Geschlecht", "Straße", "Hausnummer", "PLZ", "Stadt", "Land", "Telefonnummer", "Email", "Jobtitel", "Abteilung", "Gehalt", "Von", "Bis", "Notizen");
+        System.out.println("+-----+------------+-----------------+------------+------------+------------+------------+------------+------------+------------+-----------------+----------------------+-----------------+-----------------+--------+-------+-------+");
         for (Person person : persons) {
             System.out.println(person.toString());
         }
@@ -121,8 +168,8 @@ public class Main {
             String firstname = scanner.next();
             System.out.print("Nachname der Person: ");
             String lastname = scanner.next();
-            System.out.print("Geburtstag der Person (dd.mm.yyyy): ");
-            String birthday = scanner.next();
+            System.out.print("Geburtstag der Person (yyyy.MM.dd): ");
+            Date birthday = new PersonalManagement().StringToDate(scanner.next());
             System.out.print("Geschlecht der Person: ");
             String gender = scanner.next();
 
@@ -155,6 +202,7 @@ public class Main {
 
             System.out.print("Notizen zur Person: ");
             String notes = scanner.next();
+
             return new Person(firstname, lastname, birthday, gender, new Address(street, housenumber, zipCode, country, land), phonenumber, email, new Job(jobtitle, department, salary, workStartTime, workEndTime), notes);
         } catch (Exception ex) {
             System.out.println("Überprüfen sie ihre eingabe!");
